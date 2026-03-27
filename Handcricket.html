@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Hand Cricket Ultimate</title>
+  <style>
+    body {
+      font-family: Arial;
+      text-align: center;
+      background: linear-gradient(to right, #0D1B2A, #1B263B);
+      color: #E0E1DD;
+    }
+
+    h1 { color: #00FFAB; }
+
+    button {
+      margin: 5px;
+      padding: 12px;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      background: #06D6A0;
+      color: #0D1B2A;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    button:hover {
+      background: #00FFAB;
+      transform: scale(1.1);
+    }
+
+    input {
+      padding: 10px;
+      border-radius: 6px;
+      border: none;
+      margin: 5px;
+    }
+
+    #score { color: #FFD60A; font-size: 22px; }
+    #result { color: #FF4D4D; font-weight: bold; }
+
+    table {
+      margin: 20px auto;
+      border-collapse: collapse;
+      width: 85%;
+    }
+
+    th, td {
+      border: 1px solid #00FFAB;
+      padding: 8px;
+    }
+
+    th {
+      background: #00FFAB;
+      color: #0D1B2A;
+    }
+  </style>
+</head>
+<body>
+
+<h1>🏏 Hand Cricket Ultimate</h1>
+
+<div id="menu">
+  <h2>Select Mode</h2>
+  <button onclick="setMode('pvp')">2 Players</button>
+  <button onclick="setMode('bot')">Bot</button>
+  <button onclick="setMode('team')">Team Mode</button>
+</div>
+
+<div id="setup" style="display:none;">
+  <input id="p1" placeholder="Player / Team 1"><br>
+  <input id="p2" placeholder="Player / Team 2"><br>
+
+  <div id="teamSettings" style="display:none;">
+    <input type="number" id="players" min="2" max="11" value="2">
+  </div>
+
+  <button onclick="startToss()">Start Toss</button>
+</div>
+
+<div id="toss" style="display:none;">
+  <h2>Choose Odd or Even</h2>
+  <button onclick="toss('odd')">Odd</button>
+  <button onclick="toss('even')">Even</button>
+</div>
+
+<h2 id="status"></h2>
+<h3 id="score"></h3>
+<h3 id="result"></h3>
+
+<div id="buttons"></div>
+
+<h2>📊 Scoreboard</h2>
+<table id="scoreboard">
+  <tr><th>Player</th><th>Runs</th></tr>
+</table>
+
+<h2>📜 Match History</h2>
+<table id="historyTable">
+  <tr><th>Match</th><th>Result</th></tr>
+</table>
+
+<br>
+<button onclick="restart()">Restart</button>
+
+<script>
+let mode, p1, p2, batting, bowling;
+let innings = 1, target = 0;
+let score1 = 0, score2 = 0;
+let choice1 = null;
+
+let currentPlayer = 1;
+let totalPlayers = 1;
+
+let stats1 = [];
+let stats2 = [];
+
+// Elements
+const menu = document.getElementById("menu");
+const setup = document.getElementById("setup");
+const tossDiv = document.getElementById("toss");
+const teamSettings = document.getElementById("teamSettings");
+
+const p1Input = document.getElementById("p1");
+const p2Input = document.getElementById("p2");
+const playersInput = document.getElementById("players");
+
+const status = document.getElementById("status");
+const score = document.getElementById("score");
+const result = document.getElementById("result");
+const buttons = document.getElementById("buttons");
+const scoreboard = document.getElementById("scoreboard");
+const historyTable = document.getElementById("historyTable");
+
+// MODE
+function setMode(m) {
+  mode = m;
+  menu.style.display = "none";
+  setup.style.display = "block";
+  if (mode === "team") teamSettings.style.display = "block";
+}
+
+// START
+function startToss() {
+  p1 = p1Input.value || "Player 1";
+  p2 = p2Input.value || (mode === "bot" ? "Bot" : "Player 2");
+
+  totalPlayers = (mode === "team") ? parseInt(playersInput.value) : 1;
+
+  stats1 = Array(totalPlayers).fill(0);
+  stats2 = Array(totalPlayers).fill(0);
+
+  setup.style.display = "none";
+  tossDiv.style.display = "block";
+}
+
+// TOSS
+function toss(choice) {
+  let a = rand(), b = rand();
+  let res = ((a + b) % 2 === 0) ? "even" : "odd";
+
+  if (choice === res) {
+    batting = p1;
+    bowling = p2;
+    status.innerText = p1 + " won toss & batting";
+  } else {
+    batting = p2;
+    bowling = p1;
+    status.innerText = p2 + " won toss & batting";
+  }
+
+  tossDiv.style.display = "none";
+  createButtons();
+}
+
+// RANDOM
+function rand() {
+  return Math.floor(Math.random() * 6) + 1;
+}
+
+// BUTTONS
+function createButtons() {
+  buttons.innerHTML = "";
+  for (let i = 1; i <= 6; i++) {
+    let b = document.createElement("button");
+    b.innerText = i;
+    b.onclick = () => play(i);
+    buttons.appendChild(b);
+  }
+}
+
+// GAME
+function play(num) {
+  if (choice1 === null) {
+    choice1 = num;
+  } else {
+    let choice2 = (mode === "bot") ? rand() : num;
+
+    if (choice1 === choice2) {
+      result.innerText = "OUT!";
+      currentPlayer++;
+
+      if (currentPlayer > totalPlayers) {
+        if (innings === 1) {
+          innings = 2;
+          target = score1 + 1;
+          currentPlayer = 1;
+          status.innerText = bowling + " batting (Target: " + target + ")";
+        } else {
+          endGame();
+        }
+      }
+
+    } else {
+      if (innings === 1) {
+        score1 += choice1;
+        stats1[currentPlayer - 1] += choice1;
+        score.innerText = batting + ": " + score1;
+      } else {
+        score2 += choice2;
+        stats2[currentPlayer - 1] += choice2;
+        score.innerText = bowling + ": " + score2;
+
+        if (score2 >= target) {
+          endGame();
+          return;
+        }
+      }
+    }
+
+    updateTable();
+    choice1 = null;
+  }
+}
+
+// SCOREBOARD
+function updateTable() {
+  scoreboard.innerHTML = "<tr><th>Player</th><th>Runs</th></tr>";
+
+  let arr = (innings === 1) ? stats1 : stats2;
+  let name = (innings === 1) ? batting : bowling;
+
+  for (let i = 0; i < arr.length; i++) {
+    scoreboard.innerHTML += `<tr><td>${name} P${i+1}</td><td>${arr[i]}</td></tr>`;
+  }
+}
+
+// SAVE HISTORY
+function saveMatch(msg) {
+  let history = JSON.parse(sessionStorage.getItem("hc_history")) || [];
+  history.push(msg);
+  sessionStorage.setItem("hc_history", JSON.stringify(history));
+}
+
+// LOAD HISTORY
+function loadHistory() {
+  let history = JSON.parse(sessionStorage.getItem("hc_history")) || [];
+  historyTable.innerHTML = "<tr><th>Match</th><th>Result</th></tr>";
+
+  history.forEach((h, i) => {
+    historyTable.innerHTML += `<tr><td>Match ${i+1}</td><td>${h}</td></tr>`;
+  });
+}
+
+// END GAME
+function endGame() {
+  let msg =
+    score1 > score2 ? batting + " Wins!" :
+    score2 > score1 ? bowling + " Wins!" : "Draw";
+
+  status.innerText = msg;
+  saveMatch(msg);
+  loadHistory();
+  buttons.innerHTML = "";
+}
+
+// RESTART
+function restart() {
+  location.reload();
+}
+
+window.onload = loadHistory;
+</script>
+
+</body>
+</html>
